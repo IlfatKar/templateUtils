@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 export enum IFieldType {
   Text = 'text',
@@ -21,15 +21,17 @@ interface IField {
 }
 
 interface IFormProps {
-  id: number;
   title: string;
   fields: IField[];
   onSubmit: (form: object) => void;
+  isEdit?: boolean;
 }
 
-export default function Form({ id, fields, title, onSubmit }: IFormProps) {
+export default function Form({ isEdit, fields, title, onSubmit }: IFormProps) {
   const [form, setForm] = useState<object>({});
   const [errs, setErrs] = useState<boolean[]>([]);
+  const [params] = useSearchParams();
+  const id = params.get('id') || 0;
   const navigate = useNavigate();
   useEffect(() => {
     const a: object = { id };
@@ -38,6 +40,23 @@ export default function Form({ id, fields, title, onSubmit }: IFormProps) {
     });
     setForm(a);
   }, [fields]);
+
+  useEffect(() => {
+    if (isEdit) {
+      window.electron.ipcRenderer.once('GetServices', (arg) => {
+        const a: object = { id };
+        const service = arg.find((item) => +item.id === +id);
+
+        if (service) {
+          fields.forEach((field) => {
+            a[field.typeTitle] = service[field.typeTitle];
+          });
+        }
+        setForm(a);
+      });
+      window.electron.ipcRenderer.sendMessage('GetServices', []);
+    }
+  }, [isEdit]);
 
   return (
     <div className="AddClient">
